@@ -34,9 +34,7 @@ Goals:
 
 ### 3.2 Distance and similarity
 
-- Pairwise dissimilarity: Frobenius norm between grids  
-
- $\(d_{ij} = || A_i - A_j || \)$
+- Pairwise dissimilarity: Frobenius norm between grids $\(d_{ij} = || A_i - A_j || \)$
 
 - Converted to similarity for AP: $\( s_{ij} = -d_{ij}^2 \)$ (negative squared distance).
 
