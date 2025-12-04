@@ -36,11 +36,11 @@ Goals:
 
 - Pairwise dissimilarity: Frobenius norm between grids  
 
- $\(d_{ij} = \lVert A_i - A_j \rVert_F \)$
+ $\(d_{ij} = || A_i - A_j || \)$
 
 - Converted to similarity for AP: $\( s_{ij} = -d_{ij}^2 \)$ (negative squared distance).
 
-- Complexity: \(O(N^2 \cdot H \cdot W)\) for the dense distance matrix; practical for small $\(N\)$ (hundreds) but not for very large archives without approximation.
+- Complexity: $\(O(N^2 \cdot H \cdot W)\)$ for the dense distance matrix; practical for small $\(N\)$ (hundreds) but not for very large archives without approximation.
 
   
 
