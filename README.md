@@ -71,17 +71,25 @@ All visualizations are Plotly HTML and auto-open in your default browser.
 1) **All rainfall maps (`sample_maps.html`)**  
 
    - Grid layout with up to 6 columns; rows expand as needed.  
+   
    - Each subplot: heatmap of one map, titled by its date.  
-   - Single colorbar shared on the last subplot to reduce clutter.  
-   - Purpose: sanity-check the full dataset distribution and spatial patterns.
+   
+   - Single colorbar shared on the last subplot to reduce clutter.  
+
+   - Purpose: sanity-check the full dataset distribution and spatial patterns.
+
 
   
 
 2) **Cluster grids (`cluster_centers.html`)**  
-   - One row per cluster.  
-   - Columns span *all* members in that cluster; the center is first.  
-   - Members are ordered by proximity to the center (closest to farthest).  
-   - Purpose: assess how representative the exemplar is and how tight/loose the cluster is.
+
+   - One row per cluster.  
+   
+   - Columns span *all* members in that cluster; the center is first.  
+   
+   - Members are ordered by proximity to the center (closest to farthest).  
+   
+   - Purpose: assess how representative the exemplar is and how tight/loose the cluster is.
 
   
 
