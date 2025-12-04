@@ -36,7 +36,7 @@ Goals:
 
 - Pairwise dissimilarity: Frobenius norm between grids  
 
- $(d_{ij} = \lVert A_i - A_j \rVert_F )$
+ $\(d_{ij} = \lVert A_i - A_j \rVert_F \)$
 
 - Converted to similarity for AP: $\( s_{ij} = -d_{ij}^2 \)$ (negative squared distance).
 
@@ -116,7 +116,7 @@ Console output mirrors the cluster composition with timestamps for quick text-ba
 
 ## 8. Limitations and possible extensions
 
-- **Scalability**: Dense \(N^2\) distances limit very large datasets; for larger archives, consider subsampling, sparse k-NN graphs, or approximate neighbors.
+- **Scalability**: Dense $\(N^2\)$ distances limit very large datasets; for larger archives, consider subsampling, sparse k-NN graphs, or approximate neighbors.
 
 - **Metric choice**: Frobenius treats all pixels equally; could experiment with:
 
