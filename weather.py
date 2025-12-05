@@ -1,48 +1,58 @@
+import argparse
+from pathlib import Path
+
 import numpy as np
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from sklearn.cluster import AffinityPropagation
+from mylib import dbscan, derive_medoids
 
-import mylib
 
-# ============================================================
-# SETTINGS
-# ============================================================
+def parse_args():
+    parser = argparse.ArgumentParser(description="Cluster rainfall maps and visualize results.")
+    parser.add_argument(
+        "--data",
+        default="rainfall_data3.npy",
+        help="Path to .npy file containing 'maps' and 'timestamps' keys.",
+    )
+    parser.add_argument(
+        "--max-cols",
+        type=int,
+        default=6,
+        help="Maximum number of columns in the overview grid.",
+    )
+    parser.add_argument(
+        "--norm",
+        default="fro",
+        choices=["fro", "1", "2"],
+        help="Matrix norm used for pairwise distances.",
+    )
+    parser.add_argument(
+        "--algo",
+        choices=["ap", "dbscan"],
+        default="ap",
+        help="Clustering algorithm to use: affinity propagation (ap) or DBSCAN (dbscan).",
+    )
+    parser.add_argument("--eps", type=float, default=45, help="DBSCAN: radius for neighborhood.")
+    parser.add_argument(
+        "--min-samples",
+        type=int,
+        default=3,
+        help="DBSCAN: minimum samples to form a dense region.",
+    )
+    parser.add_argument(
+        "--no-open",
+        action="store_true",
+        help="Generate HTML outputs without auto-opening them in the browser.",
+    )
+    return parser.parse_args()
 
-N = 100           # number of rainfall maps
-H, W = 25, 25     # grid size
-ALGO = "dbscan"       # choose "ap" or "dbscan"
-DBSCAN_EPS = 45
-DBSCAN_MIN_SAMPLES = 4
 
-# ============================================================
-# LOAD DATASET
-# ============================================================
+def frob(A, B, ord_value):
+    return np.linalg.norm(A - B, ord=ord_value)
 
-loaded = np.load("./rainfall_data3.npy", allow_pickle=True).item()
-matrices = loaded["maps"]
-timestamps = loaded["timestamps"].astype("datetime64[s]").tolist()
-N, H, W = matrices.shape
 
-# ============================================================
-# FROBENIUS DISTANCE MATRIX
-# ============================================================
-
-def frob(A, B):
-    return np.linalg.norm(A - B, ord='fro')
-
-dist_matrix = np.zeros((N, N))
-for i in range(N):
-    for j in range(N):
-        dist_matrix[i, j] = frob(matrices[i], matrices[j])
-
-similarity = -(dist_matrix ** 2)  # AP requires negative squared distance
-
-# ============================================================
-# CLUSTERING HELPERS
-# ============================================================
-
-def cluster_members_sorted(labels, cluster_id, center_idx):
+def cluster_members_sorted(labels, dist_matrix, cluster_id, center_idx):
     """Return all indices in the cluster, center first, then by distance to center."""
     members = np.where(labels == cluster_id)[0].tolist()
     others = [idx for idx in members if idx != center_idx]
@@ -50,122 +60,106 @@ def cluster_members_sorted(labels, cluster_id, center_idx):
     return [center_idx] + others_sorted
 
 
-def derive_medoids(labels):
-    """For each cluster (excluding noise), pick member with min total distance as center."""
-    centers = {}
-    for cluster_id in sorted(set(labels)):
-        if cluster_id == -1:
-            continue  # noise cluster
-        members = np.where(labels == cluster_id)[0]
-        sub = dist_matrix[np.ix_(members, members)]
-        centers[cluster_id] = members[np.argmin(sub.sum(axis=1))]
-    return centers
+def main():
+    args = parse_args()
+    data_path = Path(args.data)
+    if not data_path.exists():
+        raise FileNotFoundError(f"Dataset not found: {data_path}")
 
+    # ============================================================
+    # LOAD DATASET
+    # ============================================================
+    loaded = np.load(data_path, allow_pickle=True).item()
+    matrices = loaded["maps"]
+    timestamps = loaded["timestamps"].astype("datetime64[s]").tolist()
+    N, H, W = matrices.shape
 
-def run_dbscan(eps, min_samples):
-    # Use 40th percentile of pairwise distances as a reasonable default if none provided.
-    if eps is None:
-        upper = dist_matrix[np.triu_indices_from(dist_matrix, k=1)]
-        eps = float(np.percentile(upper, 40))
-    labels = mylib.dbscan(dist_matrix, eps=eps, min_samples=min_samples)
-    centers = mylib.derive_medoids(dist_matrix, labels)
-    return labels, centers, eps
+    # ============================================================
+    # FROBENIUS DISTANCE MATRIX
+    # ============================================================
+    dist_matrix = np.zeros((N, N))
+    for i in range(N):
+        for j in range(N):
+            dist_matrix[i, j] = frob(matrices[i], matrices[j], args.norm)
 
+    # ============================================================
+    # RUN AFFINITY PROPAGATION
+    # ============================================================
+    if args.algo == "ap":
+        similarity = -(dist_matrix ** 2)  # AP requires negative squared distance
+        ap = AffinityPropagation(affinity="precomputed", random_state=0)
+        ap.fit(similarity)
+        labels = ap.labels_
+        centers = ap.cluster_centers_indices_
+        cluster_ids = list(range(len(centers)))
+    else:
+        labels = dbscan(dist_matrix, eps=45, min_samples=5)
+        medoids = derive_medoids(dist_matrix, labels)
+        cluster_ids = list(sorted(medoids.keys()))
+        centers = np.array([medoids[cid] for cid in cluster_ids], dtype=int)
 
-def run_affinity():
-    ap = AffinityPropagation(affinity="precomputed", random_state=0)
-    ap.fit(similarity)
-    labels = ap.labels_
-    centers = {cluster_id: center_idx for cluster_id, center_idx in enumerate(ap.cluster_centers_indices_)}
-    return labels, centers
+    print(f"Algorithm: {args.algo.upper()} | Number of clusters found: {len(centers)}")
+    print("Cluster centers:", centers)
 
+    # ============================================================
+    # SHOW CLOSEST MEMBERS PER CLUSTER
+    # ============================================================
+    print("\nCluster memberships (center + all maps):")
+    for cluster_id, center_idx in zip(cluster_ids, centers):
+        ordered = cluster_members_sorted(labels, dist_matrix, cluster_id, center_idx)
+        ordered_str = ", ".join(f"{i} ({timestamps[i].date()})" for i in ordered)
+        print(
+            f"Cluster {cluster_id} | center {center_idx} ({timestamps[center_idx].date()}) | members: {ordered_str}"
+        )
 
-# ============================================================
-# RUN CHOSEN CLUSTERING
-# ============================================================
+    # ============================================================
+    # VISUALIZE ALL MAPS (PLOTLY)
+    # ============================================================
+    max_cols = max(1, args.max_cols)
+    cols = min(max_cols, N)
+    rows = int(np.ceil(N / cols))
 
-if ALGO == "dbscan":
-    labels, centers_map, eps_used = run_dbscan(DBSCAN_EPS, DBSCAN_MIN_SAMPLES)
-    algo_name = f"DBSCAN (eps={eps_used:.3f}, min_samples={DBSCAN_MIN_SAMPLES})"
-else:
-    labels, centers_map = run_affinity()
-    algo_name = "Affinity Propagation"
+    all_titles = [f"{timestamps[i].date()}" for i in range(N)]
+    sample_fig = make_subplots(rows=rows, cols=cols, subplot_titles=all_titles)
 
-cluster_ids = [cid for cid in sorted(set(labels)) if cid != -1]
-noise_points = int(np.sum(labels == -1))
+    for i in range(N):
+        row = (i // cols) + 1
+        col = (i % cols) + 1
+        sample_fig.add_trace(
+            go.Heatmap(
+                z=matrices[i],
+                colorscale="Blues",
+                colorbar={"title": "Rain"},
+                showscale=(i == N - 1),  # single colorbar on last plot
+            ),
+            row=row,
+            col=col,
+        )
 
-print(f"Algorithm: {algo_name}")
-print("Number of clusters found:", len(cluster_ids))
-if noise_points:
-    print("Noise points (label = -1):", noise_points)
-print("Cluster centers:", [centers_map[cid] for cid in cluster_ids])
-
-# ============================================================
-# SHOW CLOSEST MEMBERS PER CLUSTER
-# ============================================================
-
-print("\nCluster memberships (center + all maps):")
-for cluster_id in cluster_ids:
-    center_idx = centers_map[cluster_id]
-    ordered = cluster_members_sorted(labels, cluster_id, center_idx)
-    ordered_str = ", ".join(f"{i} ({timestamps[i].date()})" for i in ordered)
-    print(f"Cluster {cluster_id} | center {center_idx} ({timestamps[center_idx].date()}) | members: {ordered_str}")
-if noise_points:
-    noise_idxs = np.where(labels == -1)[0]
-    noise_str = ", ".join(f"{i} ({timestamps[i].date()})" for i in noise_idxs)
-    print(f"\nNoise (unclustered): {noise_str}")
-
-# ============================================================
-# VISUALIZE ALL MAPS (PLOTLY)
-# ============================================================
-
-max_cols = 6  # limit width; adjust as needed
-cols = min(max_cols, N)
-rows = int(np.ceil(N / cols))
-
-all_titles = [f"{timestamps[i].date()}" for i in range(N)]
-sample_fig = make_subplots(rows=rows, cols=cols, subplot_titles=all_titles)
-
-for i in range(N):
-    row = (i // cols) + 1
-    col = (i % cols) + 1
-    sample_fig.add_trace(
-        go.Heatmap(
-            z=matrices[i],
-            colorscale="Blues",
-            colorbar={"title": "Rain"},
-            showscale=(i == N - 1),  # single colorbar on last plot
-        ),
-        row=row,
-        col=col,
+    sample_fig.update_layout(
+        title="All rainfall maps",
+        height=max(400, rows * 250),
+        width=cols * 250,
+    )
+    auto_open = not args.no_open
+    sample_fig.write_html("sample_maps.html", auto_open=auto_open)
+    print(
+        f"{'Opened' if auto_open else 'Wrote'} sample map grid in browser (saved as sample_maps.html)"
     )
 
-sample_fig.update_layout(
-    title=f"All rainfall maps ({algo_name})",
-    height=max(400, rows * 250),
-    width=cols * 250,
-)
-sample_fig.write_html("sample_maps.html", auto_open=True)
-print("Opened sample map grid in browser (saved as sample_maps.html)")
-
-# ============================================================
-# VISUALIZE CLUSTER CENTERS (PLOTLY)
-# ============================================================
-
-num_clusters = len(cluster_ids)
-
-if num_clusters == 0:
-    print("No clusters to visualize (all points treated as noise).")
-else:
+    # ============================================================
+    # VISUALIZE CLUSTER CENTERS (PLOTLY)
+    # ============================================================
+    num_clusters = len(centers)
     cluster_members = [
-        cluster_members_sorted(labels, cluster_id, centers_map[cluster_id])
-        for cluster_id in cluster_ids
+        cluster_members_sorted(labels, dist_matrix, cluster_id, center_idx)
+        for cluster_id, center_idx in zip(cluster_ids, centers)
     ]
     max_cluster_size = max(len(members) for members in cluster_members)
 
     cluster_titles = []
     for row_idx, members in enumerate(cluster_members):
-        center_idx = centers_map[cluster_ids[row_idx]]
+        center_idx = centers[row_idx]
         for col in range(max_cluster_size):
             if col < len(members):
                 idx = members[col]
@@ -189,9 +183,17 @@ else:
             )
 
     cluster_fig.update_layout(
-        title=f"Cluster centers and all cluster members ({algo_name})",
+        title="Cluster centers and all cluster members (rows = clusters)",
         height=max(300, num_clusters * 300),
         width=max_cluster_size * 300,
     )
-    cluster_fig.write_html("cluster_centers.html", auto_open=True)
-    print("Opened cluster center grid in browser (saved as cluster_centers.html)")
+    cluster_fig.write_html("cluster_centers.html", auto_open=auto_open)
+    print(
+        f"{'Opened' if auto_open else 'Wrote'} cluster center grid in browser (saved as cluster_centers.html)"
+    )
+
+
+if __name__ == "__main__":
+    main()
+r_fig.write_html("cluster_centers.html", auto_open=True)
+print("Opened cluster center grid in browser (saved as cluster_centers.html)")
