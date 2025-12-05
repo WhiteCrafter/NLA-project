@@ -44,12 +44,12 @@ A document vector is the average of all tag vectors.
 ##  Norms for Distance
 
 We test three common norms:
-
+```
 def norm2(a):   # Euclidean norm
 def norm1(a):   # Manhattan norm
 def norminf(a): # Infinity norm
 
-
+```
 L2 — smooth distances
 
 L1 — good when documents mix tags
@@ -75,16 +75,16 @@ Handles weird outliers
 Good for hybrid-tag documents
 
 ##  Distance Matrix + DBSCAN Implementation
-def pairwise_distances(points, norm):
+```def pairwise_distances(points, norm):
     n = len(points)
     d = np.zeros((n, n))
     for i in range(n):
         for j in range(i, n):
             dist = norm(points[i] - points[j])
             d[i, j] = d[j, i] = dist
-    return d
+    return d```
 
-
+```
 def dbscan(dist_matrix, eps, min_samples):
     n = dist_matrix.shape[0]
     labels = -np.ones(n, dtype=int)
@@ -119,10 +119,10 @@ def dbscan(dist_matrix, eps, min_samples):
 
         cluster_id += 1
 
-    return labels
+    return labels```
 
 ##  Tag Embeddings
-tag_vectors = {
+```tag_vectors = {
     "math":            np.array([1.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
     "NLA":             np.array([0.90, 0.20, 0.00, 0.00, 0.00, 0.00]),
     "calculus":        np.array([0.85, 0.00, 0.00, 0.00, 0.00, 0.00]),
@@ -151,19 +151,19 @@ tag_vectors = {
     "journal":         np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.90]),
     "recipes":         np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.80])
 }
-
+```
 ##  Sample Documents
 
 Your full synthetic dataset (math, coding, art, fantasy, gaming, hobby, and mixes) remains unchanged.
 I am not repeating it here for brevity, but it plugs in exactly as-is.
 
 ##  Document Embedding Function
-def document_vector(tags):
+```def document_vector(tags):
     vecs = [tag_vectors[tag] for tag in tags if tag in tag_vectors]
     if not vecs:
         return np.zeros(6)
     return np.mean(vecs, axis=0)
-
+```
 ##  Running DBSCAN
 doc_embeddings = {name: document_vector(tags) for name, tags in documents.items()}
 names = list(doc_embeddings.keys())
@@ -193,11 +193,11 @@ Noise = documents too unique or cross-topic for DBSCAN.
 
 Alternative clustering with no eps needed:
 
-from sklearn.cluster import AffinityPropagation
+```from sklearn.cluster import AffinityPropagation
 
 ap = AffinityPropagation(damping=0.9, random_state=0)
 labels = ap.fit_predict(array)
-
+```
 
 AP:
 
@@ -221,10 +221,10 @@ Supports:
 
 
 Example:
-
+```
 python tag_clustering.py --method ap
 python tag_clustering.py --method dbscan --eps 0.32 --norm l1
-
+```
 ## Summary
 
 This system provides a full workflow:
