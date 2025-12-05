@@ -77,6 +77,7 @@ All visualizations are Plotly HTML and auto-open in your default browser.
    - Single colorbar shared on the last subplot to reduce clutter.  
 
    - Purpose: sanity-check the full dataset distribution and spatial patterns.
+<img width="686" height="856" alt="image" src="https://github.com/user-attachments/assets/a4e5abb0-d0ee-47fb-b053-7956a9e16678" />
 
 
   
@@ -92,6 +93,8 @@ All visualizations are Plotly HTML and auto-open in your default browser.
    - Purpose: assess how representative the exemplar is and how tight/loose the cluster is.
 
   
+<img width="1490" height="838" alt="image" src="https://github.com/user-attachments/assets/b1ace546-aef9-4171-bbd5-38576042a4eb" />
+
 
 Console output mirrors the cluster composition with timestamps for quick text-based inspection.
 
@@ -126,11 +129,11 @@ Console output mirrors the cluster composition with timestamps for quick text-ba
 
 - **Metric choice**: Frobenius treats all pixels equally; could experiment with:
 
-  - Normalizing by total rainfall per map.
+    - Normalizing by total rainfall per map.
 
-  - Structural similarity indices.
+    - Structural similarity indices.
 
-  - Learned embeddings from autoencoders or CNNs.
+    - Learned embeddings from autoencoders or CNNs.
 
 - **Clustering alternatives**: k-medoids, hierarchical clustering with cut selection, or HDBSCAN on feature embeddings.
 
