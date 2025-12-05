@@ -1,8 +1,8 @@
-# 📘 Clustering Notes & Documents Based on Tags
+#  Clustering Notes & Documents Based on Tags
 
 Using semantic tag embeddings + DBSCAN / AffinityPropagation
 
-🧠 Why cluster notes?
+## Why cluster notes?
 
 If you have a growing Obsidian or Markdown library, tags help manually, but clustering reveals hidden structure:
 
@@ -16,15 +16,15 @@ Cleanly separate math / coding / art / fantasy / gaming topics
 
 This document explains and demonstrates how to cluster notes using semantic embeddings of tags, using DBSCAN and AffinityPropagation.
 
-## 🧩 Semantic Embeddings for Tags
+##  Semantic Embeddings for Tags
 
 There are two ways to encode tags numerically:
 
-❌ 1. Boolean tag vector (0/1)
+ 1. Boolean tag vector (0/1)
 
 Not good — treats unrelated tags as equally distant.
 
-✅ 2. Semantic tag embeddings
+ 2. Semantic tag embeddings
 
 We use 6 conceptual axes:
 
@@ -41,7 +41,7 @@ game-dev	Coding + gaming
 
 A document vector is the average of all tag vectors.
 
-## 🧮 Norms for Distance
+##  Norms for Distance
 
 We test three common norms:
 
@@ -56,7 +56,7 @@ L1 — good when documents mix tags
 
 L∞ — only cares about the dominant semantic axis
 
-## 🧵 Density-Based Clustering (DBSCAN)
+##  Density-Based Clustering (DBSCAN)
 
 DBSCAN groups dense areas and marks unrelated documents as noise (-1).
 
@@ -74,7 +74,7 @@ Handles weird outliers
 
 Good for hybrid-tag documents
 
-## 🧮 Distance Matrix + DBSCAN Implementation
+##  Distance Matrix + DBSCAN Implementation
 def pairwise_distances(points, norm):
     n = len(points)
     d = np.zeros((n, n))
@@ -121,7 +121,7 @@ def dbscan(dist_matrix, eps, min_samples):
 
     return labels
 
-## 🧬 Tag Embeddings
+##  Tag Embeddings
 tag_vectors = {
     "math":            np.array([1.00, 0.00, 0.00, 0.00, 0.00, 0.00]),
     "NLA":             np.array([0.90, 0.20, 0.00, 0.00, 0.00, 0.00]),
@@ -152,19 +152,19 @@ tag_vectors = {
     "recipes":         np.array([0.00, 0.00, 0.00, 0.00, 0.00, 0.80])
 }
 
-## 📄 Sample Documents
+##  Sample Documents
 
 Your full synthetic dataset (math, coding, art, fantasy, gaming, hobby, and mixes) remains unchanged.
 I am not repeating it here for brevity, but it plugs in exactly as-is.
 
-## 🧬 Document Embedding Function
+##  Document Embedding Function
 def document_vector(tags):
     vecs = [tag_vectors[tag] for tag in tags if tag in tag_vectors]
     if not vecs:
         return np.zeros(6)
     return np.mean(vecs, axis=0)
 
-## 🧪 Running DBSCAN
+##  Running DBSCAN
 doc_embeddings = {name: document_vector(tags) for name, tags in documents.items()}
 names = list(doc_embeddings.keys())
 array = np.vstack([v for v in doc_embeddings.values()])
@@ -177,7 +177,7 @@ MIN_SAMPLES = 3
 labels = dbscan(dist_matrix, eps=EPS, min_samples=MIN_SAMPLES)
 clusters = summarize_clusters(labels, names)
 
-## 📊 Example Output
+##  Example Output
 DBSCAN eps=0.412, min_samples=3
 
 Cluster 0: ['build_guide_slayer', 'game_review_hd2']
@@ -189,7 +189,7 @@ Cluster -1 (Noise): [weird crossover docs]
 
 Noise = documents too unique or cross-topic for DBSCAN.
 
-## 🔄 Affinity Propagation (AP)
+## Affinity Propagation (AP)
 
 Alternative clustering with no eps needed:
 
@@ -225,7 +225,7 @@ Example:
 python tag_clustering.py --method ap
 python tag_clustering.py --method dbscan --eps 0.32 --norm l1
 
-## 🎯 Summary
+## Summary
 
 This system provides a full workflow:
 
